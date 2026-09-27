@@ -1,0 +1,30 @@
+# Stable Diffusion 2.1 — model identity, weight paths, and dataset/sampling
+# defaults. Auto-merged under the run config by compose_generation_config when
+# m1_model_type or mi_model_type resolves to "sd21" (set at the pipeline level
+# in configs/pipeline/run_pipeline.yaml — no longer declared here).
+
+# Finetuning hyperparameter base merged under the run config.
+finetune_base: configs/finetuning/stablediffusion/common.yaml
+
+model:
+  model_path: ${oc.env:RADIOACTIVITY_MODELS}/models/sd2.1_base
+  revision: fp16
+  variant: fp16
+
+datasets:
+  name: coco
+  image_column: image
+  caption_column: text
+  # train_data_dir_clean / train_data_dir_watermarked auto-derived by
+  # src/paths.py:resolve_auto_paths. Mixing is controlled by
+  # training.watermark_fraction (no explicit dual flag).
+
+dataset_params:
+  num_images: 5000
+  num_images_per_prompt: 1
+  guidance_scale: 7.5
+  num_inference_steps: 50
+  image_length: 512
+
+training_setup:
+  resolution: 512

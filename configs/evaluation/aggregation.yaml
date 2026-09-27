@@ -1,0 +1,32 @@
+# Aggregation evaluation: pool per-image features into one decoded message
+# and test bit-accuracy against either Binomial(K, 0.5) or a bootstrap null
+# built from the M1 reference features. Requires detection.save_features=true
+# so a feature .npz lives next to the scores .json.
+
+watermark:
+  iteration: 1
+  run_id: null
+
+datasets:
+  name: coco
+
+detection_mode: aggregation
+
+# Same clean-reference convention as e_value.yaml; aggregation reads the M1
+# feature cache from this location when null='bootstrap_m1'.
+clean_reference_source: mi_0pct
+
+eval_params:
+  aggregation_n: 0                  # 0 → use all features in the cache
+  aggregation_bootstrap_B: 10000    # bootstrap draws for the M1-reference null
+  alpha: 0.05
+  num_seeds: 1                      # one shot per scenario; aggregation collapses to one statistic
+  start_seed: 42
+  # The test always reports both p_binomial (Binomial(K, 0.5)) and p_vs_m1
+  # (bootstrap from same-mode M1 features). Native-space aggregation always
+  # runs; a normalised-space (e.g. sigmoid) pass is added when the watermark's
+  # feature_normalisation is non-identity.
+
+evaluation_scenarios:
+  - percentage: 100
+    modes: [supervised, unsupervised, baseline]

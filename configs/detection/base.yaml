@@ -1,0 +1,31 @@
+# Generic detection stage config.
+# Merged with a watermark config (configs/watermarks/<method>.yaml).
+# m1_model_type / mi_model_type serve two purposes:
+#   (1) Path context — locating the generated images to score.
+#   (2) Detector loading — the active model's YAML under
+#       configs/models/<type>.yaml is merged in, giving the watermark class
+#       model.model_path and sampling defaults (dataset_params.*) that any
+#       detector needing a diffusion pipeline relies on (e.g. TreeRing DDIM).
+# The pipeline injects the appropriate model types per detection target.
+# Artifact paths are resolved from paths.out_base / RADIOACTIVITY_OUT.
+
+# m1_model_type / mi_model_type are NOT set here — supplied by the pipeline,
+# --model_type CLI flag, or the watermark config.
+
+detection:
+  target: m1_clean    # overridden by pipeline: m1_clean | mi
+  num_seeds: 10
+  start_seed: 42
+  num_images: 200
+
+watermark:
+  iteration: 1        # pipeline sets per-iteration
+  run_id: null        # pipeline auto-derives from finetuning config
+
+dataset_params:
+  num_images: 5000
+  batch_size: 64
+
+datasets:
+  name: coco
+  set_name: null

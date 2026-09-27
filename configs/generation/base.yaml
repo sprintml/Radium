@@ -1,0 +1,26 @@
+# Generic generation stage config.
+# Owns: dataset/IO settings and the default watermark.mode for this stage.
+# Merged with a watermark config (configs/watermarks/<method>.yaml) which
+# supplies watermark.method / type / params.
+#
+# m1_model_type / mi_model_type are NOT set here — they must come from:
+#   - the pipeline (injected via chain_overrides from the run's model config), or
+#   - --model_type on the CLI for single-stage runs, or
+#   - the watermark config itself (e.g. bitmark declares infinity_2b).
+
+watermark:
+  mode: generate      # overridden via chain_overrides to clean_generate for M1 clean stages
+
+dataset_params:
+  num_images: 5000
+  batch_size: 64
+
+datasets:
+  name: coco
+  split: "train"  # train = coco_karpathy_train.json (~113k prompts); val = coco_karpathy_val.json
+  coco_annotation_dir: /data_dir/annotations
+  # Optionally override prompt source with a local JSONL file (prompt_file takes priority
+  # over name/split). Prompt key is auto-detected (Prompt, prompt, text, caption).
+  prompt_file: null
+
+seed: 42

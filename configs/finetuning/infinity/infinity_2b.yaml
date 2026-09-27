@@ -1,0 +1,103 @@
+# Infinity-2B finetuning base.
+# Loaded by src.finetuning.runner.load_finetune_config when the run config
+# resolves to mi_model_type=infinity_2b — merged UNDER the run config so the
+# stage yaml always wins. Counterpart to configs/finetuning/stablediffusion/common.yaml
+# for SD-family runs.
+#
+# Scope:
+#   - the 4 hyperparameters required by pipeline/stages/finetuning.py
+#     (watermark_fraction, num_train_epochs, learning_rate, train_batch_size)
+#   - training_setup keys consumed by InfinityRunner (eval_batch_size,
+#     gradient_accumulation_steps, sample limits)
+#   - finetuning.launch (torchrun strategy / nproc) and mapped_args
+#     fallbacks read by InfinityRunner._build_command
+#   - backend_overrides.infinity.args — torchrun flags forwarded verbatim
+#     to src/finetuning/infinity/train.py
+# Model identity, the runtime infinity: block, and model.* paths stay in
+# configs/models/infinity_2b.yaml so generation/detection still see them.
+
+seed: 42
+
+datasets:
+  # See stablediffusion/common.yaml for the meaning of finetune_clean_source.
+  finetune_clean_source: "generated"
+
+training:
+  watermark_fraction: 1.0
+  num_train_epochs: 2
+  learning_rate: 6.0e-4
+  train_batch_size: 4
+
+training_setup:
+  eval_batch_size: 4
+  gradient_accumulation_steps: 1   # halved lbs (2->1), doubled cum (4->8) to keep effective batch size after 40GB OOM
+  max_train_samples: 5000
+  max_validation_samples: 1000
+
+finetuning:
+  tracker_project_name: text2image-fine-tune
+  use_best_model: false
+  launch:
+    strategy: auto
+    torchrun:
+      nproc_per_node: 1
+  mapped_args:
+    # Fallback defaults for the core hyperparams mapped by InfinityRunner.
+    # Normal path uses training.* / training_setup.* above.
+    ep: 2
+    lbs: 1
+    cum: 8
+    tblr: 6.0e-4
+    exp_name: infinity_finetune
+
+# Extra torchrun flags appended to the Infinity training command.
+# Mirrors the hyperparameters hard-coded in scripts/finetune_infinity.sh.
+# InfinityRunner._build_command reads backend_overrides.infinity.args and
+# appends each as --<key> <value>.
+backend_overrides:
+  infinity:
+    args:
+      opt: adamw
+      sche: lin0
+      fp16: 2
+      ada: 0.9_0.97
+      tini: -1
+      tclip: 5
+      flash: 0
+      alng: 5.0e-6
+      saln: 1
+      cos: 1
+      enable_checkpointing: full-block
+      task_type: t2i
+      pn: 1M
+      model: 2bc8
+      workers: 8
+      short_cap_prob: 0.5
+      online_t5: 1
+      use_streaming_dataset: 1
+      iterable_data_buffersize: 30000
+      Ct5: 2048
+      t5_path: ${oc.env:RADIOACTIVITY_MODELS}/models/Infinity/flan-t5-xl
+      vae_type: 32
+      vae_ckpt: ${oc.env:RADIOACTIVITY_MODELS}/models/Infinity/weights/infinity_vae_d32reg.pth
+      wp: 1.0e-8
+      wpe: 1
+      dynamic_resolution_across_gpus: 1
+      enable_dynamic_length_prompt: 1
+      add_lvl_embeding_only_first_block: 1
+      rope2d_each_sa_layer: 1
+      rope2d_normalized_by_hw: 2
+      use_fsdp_model_ema: 0
+      always_training_scales: 100
+      use_bit_label: 1
+      zero: 2
+      save_model_iters_freq: 2500
+      log_freq: 1
+      checkpoint_type: torch
+      prefetch_factor: 16
+      noise_apply_strength: 0.1
+      noise_apply_layers: 13
+      apply_spatial_patchify: 0
+      use_flex_attn: true
+      pad: 128
+      alpha: 0.005

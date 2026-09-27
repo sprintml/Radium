@@ -1,0 +1,36 @@
+# Stable Diffusion 1.4 — model-specific overrides only.
+# Generic stage defaults live in configs/{generation,detection,evaluation}/base.yaml.
+m1_model_type: sd14
+mi_model_type: sd14
+
+# Finetuning hyperparameter base merged under the run config.
+finetune_base: configs/finetuning/stablediffusion/common.yaml
+
+model:
+  # Local snapshot of CompVis/stable-diffusion-v1-4 main (safetensors only).
+  # Avoids HF's `fp16` revision branch (which ships only `pytorch_model.bin`
+  # and trips transformers' CVE-2025-32434 check under torch <2.6) and any
+  # ambient `revision: fp16` leaking from sd21 in cross-arch runs.
+  # Bootstrap one-time per user with:
+  #   huggingface-cli download CompVis/stable-diffusion-v1-4 \
+  #     --local-dir $RADIOACTIVITY_MODELS/models/sd14_base \
+  #     --include "*.safetensors" "*.json" "*.txt" \
+  #               "tokenizer/*" "scheduler/*" "feature_extractor/*"
+  model_path: ${oc.env:RADIOACTIVITY_MODELS}/models/sd14_base
+  revision: null
+  variant: null
+
+datasets:
+  name: coco
+  image_column: image
+  caption_column: text
+
+dataset_params:
+  num_images: 5000
+  num_images_per_prompt: 1
+  guidance_scale: 7.5
+  num_inference_steps: 50
+  image_length: 512
+
+training_setup:
+  resolution: 512

@@ -1,0 +1,192 @@
+# Top-level pipeline config.
+#
+# auto_generate_configs: true
+#   Each stage declares base_config + chain_overrides (substituted per-i).
+#   The pipeline writes configs to generated_configs_dir and appends
+#   --config_path to the stage command automatically.
+#   {i} is the current chain index (starts at 1 for the M1→M2 bootstrap).
+#   {next_i} = i+1  (the model being trained at this step).
+#   {prev_i} = i-1  (the previous iteration's data/model).
+#   Generation stages inherit generation_config when no base_config is set.
+#   Detection stages inherit detection_config when no base_config is set.
+#   generation_target is derived from the stage name automatically.
+#   Each stage defaults to "python -m <module>" derived from its name;
+#   provide an explicit command only to pass extra CLI flags.
+#
+# auto_generate_configs: false (default)
+#   Stages use command_template with {i} referencing pre-existing
+#   per-iteration config files.
+#
+# Dependency convention (step names are "{stage}_M{i}"):
+#   i=1 bootstrap (trains M2)
+#     generation_m1_clean          (iter={i}=1)      → M1_clean/ps1
+#     generation_m1_clean_unsup    (iter={next_i}=2) → M1_clean/ps2
+#     generation_m1_watermarked    (iter={i}=1)      → M1_wm/ps1    [only i=1]
+#     finetuning                   (iter={next_i}=2) ← clean + watermarked
+#     generation_mi                (iter={i}=1)      → M2/ps1       ← finetuning
+#     generation_unsupervised_mi   (iter={next_i}=2) → M2/ps2       ← finetuning
+#     detection_m1_supervised      → M1/ps_i scores   ← generation_m1_clean
+#     detection_m1_unsupervised    → M1/ps_{i+1} scores ← generation_m1_clean_unsupervised
+#     detection_mi_supervised      → M2/ps_i scores   ← generation_mi
+#     detection_mi_unsupervised    → M2/ps_{i+1} scores ← generation_unsupervised_mi
+#     evaluation                                       ← all four detection outputs
+#
+#   i≥2 general step (trains M{next_i})
+#     generation_m1_clean          (iter={i})         → M1/ps_i
+#     generation_m1_clean_unsup    (iter={next_i})    → M1/ps_{next_i}
+#     finetuning                   (iter={next_i})    ← unsupervised_mi_M{prev_i}
+#     generation_mi                (iter={i})         → M{next_i}/ps_i     ← finetuning
+#     generation_unsupervised_mi   (iter={next_i})    → M{next_i}/ps_{next_i} ← finetuning
+#     detection_m1_supervised/unsupervised            ← generation_m1_clean/unsupervised
+#     detection_mi_supervised/unsupervised            ← generation_mi/unsupervised_mi
+#     evaluation                                      ← all four detection outputs
+
+run:
+  name: treering_chain_demo
+  auto_generate_configs: true
+  # Relative generated_configs_dir values are rooted at run.paths_out_base
+  # (or RADIOACTIVITY_OUT when run.paths_out_base is unset).
+  generated_configs_dir: pipeline_configs
+  # paths_out_base: ${oc.env:RADIOACTIVITY_OUT}
+  # The watermark identity (method / type / params) lives in its own config
+  # and is merged into every stage config. Swap this one line to switch
+  # watermarks end-to-end; per-stage `watermark_config:` overrides are allowed.
+  watermark_config: configs/watermarks/treering.yaml
+  generation_config: configs/generation/base.yaml
+  detection_config: configs/detection/base.yaml
+  # Base finetuning hyperparams only (e.g. configs/finetuning/stablediffusion/common.yaml
+  # for SD-family or configs/finetuning/infinity/infinity_2b.yaml for Infinity).
+  # The model spec is pulled in by compose_generation_config from
+  # configs/models/<mi_model_type>.yaml, driven by run.mi_model_type below.
+  finetuning_config: configs/finetuning/stablediffusion/common.yaml
+  evaluation_config: configs/evaluation/e_value.yaml
+  # Architecture pair. The planner injects these into every stage's overrides
+  # so compose_generation_config picks the right configs/models/<type>.yaml.
+  # Override per run, e.g. -o run.mi_model_type=infinity_2b.
+  m1_model_type: sd21
+  mi_model_type: sd21
+  chain:
+    start_i: 1
+    end_i: 4
+    stages:
+      - generation_m1_clean
+      - generation_m1_clean_unsupervised
+      - generation_m1_watermarked
+      - finetuning
+      - generation_mi
+      - generation_unsupervised_mi
+      - detection_m1_supervised
+      - detection_m1_unsupervised
+      - detection_m1_watermarked   # E-value sanity check: scores M1's own watermarked outputs (i=1 only).
+      - detection_mi_supervised
+      - detection_mi_unsupervised
+      - evaluation
+
+stages:
+
+  generation_m1_clean:
+    chain_overrides:
+      watermark.mode: "clean_generate"
+      watermark.iteration: "{i}"
+    # generation_m1_clean_M{i} and generation_m1_clean_unsupervised_M{i-1}
+    # both write prompt_set_{i}. Serialize so the second sees
+    # is_generation_complete=True and skips. Filtered out at i=start_i
+    # (prev_i resolves to a step that doesn't exist) so the first
+    # iteration's clean generation still runs normally.
+    depends_on:
+      - "generation_m1_clean_unsupervised_M{prev_i}"
+
+  generation_m1_clean_unsupervised:
+    chain_overrides:
+      watermark.mode: "clean_generate"
+      watermark.iteration: "{next_i}"
+
+  generation_m1_watermarked:
+    only_iterations: [1]
+    chain_overrides:
+      watermark.iteration: "{i}"
+    depends_on:
+      - "generation_m1_clean_M{i}"
+
+  finetuning:
+    # base_config inherits from run.finetuning_config
+    gpu_profile: high_vram
+    chain_overrides:
+      watermark.iteration: "{next_i}"
+    depends_on:
+      - "generation_m1_clean_M{i}"                   # M1_clean/ps_i      (clean half of the training mix — required for i=1 bootstrap)
+      - "generation_m1_watermarked_M{i}"             # M1_wm/ps_i         (i=1 only; filtered otherwise)
+      - "generation_unsupervised_mi_M{prev_i}"       # M{i}/ps_{next_i-1} (i≥2: training data)
+
+  generation_mi:
+    chain_overrides:
+      watermark.mode: "clean_generate"
+      watermark.iteration: "{i}"
+    depends_on:
+      - "finetuning_M{i}"
+
+  generation_unsupervised_mi:
+    chain_overrides:
+      watermark.mode: "clean_generate"
+      watermark.iteration: "{next_i}"
+    depends_on:
+      - "finetuning_M{i}"
+
+  detection_m1_supervised:
+    chain_overrides:
+      detection.target: "m1_clean"
+      watermark.iteration: "{i}"
+    # detection_m1_supervised_M{i} and detection_m1_unsupervised_M{i-1}
+    # both score prompt_set_{i} and write the same scores/<wm>.json.
+    # Serialize so the second one short-circuits via is_detection_complete.
+    # Without this they race and corrupt the cache (JSONDecodeError on
+    # interleaved read/write). Filtered out at i=start_i.
+    depends_on:
+      - "generation_m1_clean_M{i}"
+      - "detection_m1_unsupervised_M{prev_i}"
+
+  detection_m1_unsupervised:
+    chain_overrides:
+      detection.target: "m1_clean"
+      watermark.iteration: "{i}"
+      datasets.set_name: "prompt_set_{next_i}"
+    depends_on:
+      - "generation_m1_clean_unsupervised_M{i}"
+
+  # E-value sanity check: detect the watermark in M1's own watermarked outputs
+  # at prompt_set_1 (i.e. baseline e-value of M1 watermarked vs M1 clean). Only
+  # runs at i=1 because M1 watermarked data is generated once.
+  detection_m1_watermarked:
+    only_iterations: [1]
+    chain_overrides:
+      detection.target: "m1_watermarked"
+      watermark.iteration: "{i}"
+    depends_on:
+      - "generation_m1_watermarked_M{i}"
+
+  detection_mi_supervised:
+    chain_overrides:
+      detection.target: "mi"
+      watermark.iteration: "{i}"
+    depends_on:
+      - "generation_mi_M{i}"
+
+  detection_mi_unsupervised:
+    chain_overrides:
+      detection.target: "mi"
+      watermark.iteration: "{i}"
+      datasets.set_name: "prompt_set_{next_i}"
+    depends_on:
+      - "generation_unsupervised_mi_M{i}"
+
+  evaluation:
+    # base_config inherits from run.evaluation_config
+    gpu_profile: cpu_only
+    chain_overrides:
+      watermark.iteration: "{i}"
+    depends_on:
+      - "detection_m1_supervised_M{i}"
+      - "detection_m1_unsupervised_M{i}"
+      - "detection_m1_watermarked_M{i}"   # only present at i=1; ignored otherwise
+      - "detection_mi_supervised_M{i}"
+      - "detection_mi_unsupervised_M{i}"

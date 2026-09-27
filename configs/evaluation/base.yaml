@@ -1,0 +1,45 @@
+# Generic evaluation stage config.
+# Merged with a watermark config (configs/watermarks/<method>.yaml).
+# Evaluation loads no model — m1/mi_model_type are path context only,
+# supplied by the pipeline or --model_type CLI flag.
+# Artifact paths are resolved from paths.out_base / RADIOACTIVITY_OUT.
+
+watermark:
+  iteration: 1
+  run_id: null
+
+datasets:
+  name: coco
+
+# Only `evalue` is wired up end-to-end in the current pipeline; switch to
+# `welch` (or override via `-o detection_mode=welch`) to use Welch's t-test.
+detection_mode: evalue
+
+# Source of the clean reference score cache used in (un)supervised tests.
+# `mi_0pct` (default): Mi (finetuned) outputs from the 0% watermark-fraction
+#     sibling of the current run_id (derived by replacing the leading `{N}pct`
+#     with `0pct`). Gold-standard calibration: controls for finetuning-induced
+#     distribution shift by comparing watermarked-finetuned Mi against
+#     clean-finetuned Mi, all else equal. Requires the 0% pipeline to have
+#     been run already (generated images + detection scores must exist on disk).
+# `m1_clean`: M1's clean generations (M1 = m1_model_type).
+# `mi_arch_clean`: clean generations keyed by mi_model_type — i.e. M1 of the Mi
+#     architecture's clean outputs. Useful for cross-architecture chains where
+#     the meaningful clean baseline is the Mi base model's own clean outputs.
+#     In same-arch chains the resolved path matches `m1_clean`, so it is a no-op.
+# Baseline mode (M1-watermarked vs M1-clean) ignores this flag.
+clean_reference_source: mi_0pct
+
+evaluation_scenarios:
+  # `percentage` is the *test-set* watermarked fraction (which eval images
+  # carry the watermark), independent of the *training* watermark_fraction
+  # swept in run_pipeline.sh. The pipeline does not override this list, so
+  # whatever is set here runs for every sweep combination. Add entries
+  # (e.g. 10/50/100) to trace a detection curve.
+  #
+  # `baseline` is an e-value sanity check: M1 watermarked vs M1 clean at
+  # prompt_set_1. It tests that the watermark itself is detectable in M1's
+  # own outputs before asking whether it survives finetuning. The evaluation
+  # stage skips it automatically at iteration > 1 (no M1 watermarked data).
+  - percentage: 100
+    modes: [supervised, unsupervised, baseline]

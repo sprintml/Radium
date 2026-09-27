@@ -1,0 +1,94 @@
+# Shared SD-family finetuning defaults (SD1.4, SD2.1, SD3).
+# Merged UNDER the concrete run config by src/finetuning/runner.py
+# (load_finetune_config). Per-version overrides chain to this file via
+# their own finetune_base (e.g. configs/finetuning/stablediffusion/sd3.yaml).
+# Model configs and stage configs always win.
+#
+# Infinity has its own base at configs/finetuning/infinity/infinity_2b.yaml —
+# do not add Infinity-specific keys here.
+#
+# Scope:
+#   - training / training_setup defaults shared by the SD family.
+#   - defaults.sd_args_base = low-level HF diffusers script flags consumed
+#     by SDRunner._default_args.
+#   - global seed.
+# Generated-image inputs and finetuning outputs are resolved from
+# paths.out_base / RADIOACTIVITY_OUT.
+
+seed: 42
+
+# Controls what images are used as the clean (unwatermarked) side of finetuning.
+#   "generated" (default): use M1 clean-generated images from datasets.train_data_dir_clean
+#   "coco_val":             use real COCO validation images; requires coco_val_image_dir below.
+# Evaluation is unaffected — it always uses M1 clean-generated images.
+datasets:
+  finetune_clean_source: "generated"
+  # Required when finetune_clean_source: "coco_val":
+  coco_val_image_dir: /data_dir/data/coco_val_2014/5k_train_split
+  coco_val_val_dir: /data_dir/data/coco_val_2014/1k_val_split
+  coco_val_annotation: /data_dir/annotations/coco_karpathy_val.json
+
+training:
+  watermark_fraction: 1.0
+  num_train_epochs: 5
+  learning_rate: 1.0e-5
+  train_batch_size: 4
+  lr_scheduler: constant
+  lr_warmup_steps: 500
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_weight_decay: 0.01
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0
+
+training_setup:
+  eval_batch_size: 4
+  gradient_accumulation_steps: 1
+  max_train_steps: null
+  max_train_samples: 5000
+  max_validation_samples: 1000
+  center_crop: false
+  random_flip: true
+  use_ema: false
+  gradient_checkpointing: true
+  mixed_precision: fp16
+  validation_epochs: 1
+  checkpointing_steps: 1000
+  checkpoints_total_limit: 5
+
+finetuning:
+  tracker_project_name: text2image-fine-tune
+  # true = symlink model/ -> best_model_pipeline; false -> final_pipeline
+  use_best_model: false
+
+defaults:
+  sd_args_base:
+    dataset_name: null
+    dataset_config_name: null
+    validation_data_dir: null
+    image_column: image
+    caption_column: text
+    scale_lr: false
+    use_8bit_adam: false
+    allow_tf32: false
+    offload_ema: false
+    foreach_ema: false
+    non_ema_revision: null
+    resume_from_checkpoint: null
+    enable_xformers_memory_efficient_attention: false
+    noise_offset: 0
+    input_perturbation: 0
+    snr_gamma: null
+    dream_training: false
+    dream_detail_preservation: 1.0
+    prediction_type: null
+    push_to_hub: false
+    hub_token: null
+    hub_model_id: null
+    local_rank: -1
+    dataloader_num_workers: 0
+    validation_prompts: null
+    seed: 42
+    report_to: tensorboard
+    cache_dir: null
+    logging_dir: logs

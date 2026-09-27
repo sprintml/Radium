@@ -1,0 +1,30 @@
+# Aggregation evaluation in baseline mode only:
+# Suspect:         M1 watermarked, prompt_set_1
+# Clean reference: M1 clean,       prompt_set_1 (clean_reference_source=m1_clean)
+# No finetuning / Mi involved — useful as a sanity check that the watermark is
+# detectable by the aggregation test on its own embedding model.
+
+watermark:
+  iteration: 1
+  run_id: null
+
+datasets:
+  name: coco
+
+detection_mode: aggregation
+
+# Force the clean reference to M1's own clean generations rather than the
+# default mi_0pct (which would require a finetuning run that doesn't exist
+# in this baseline-only setup).
+clean_reference_source: m1_clean
+
+eval_params:
+  aggregation_n: 0                  # 0 → use all features in the cache
+  aggregation_bootstrap_B: 10000    # bootstrap draws for the clean-reference null
+  alpha: 0.05
+  num_seeds: 1
+  start_seed: 42
+
+evaluation_scenarios:
+  - percentage: 100
+    modes: [baseline]

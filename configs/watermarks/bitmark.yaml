@@ -1,0 +1,23 @@
+# BitMark — embeds into Infinity's bit-level codes at generation time.
+# Architecturally tied to the Infinity generator on the M1 side; Mi (the
+# finetune target) is unconstrained and varies across sweeps. Do NOT pin
+# m1_model_type / mi_model_type here — those are runtime selections owned
+# by run.* / the sweep script. The planner enforces compatibility via
+# generation_compatible_architectures below.
+watermark:
+  method: bitmark
+  type: in_generation
+  generation_compatible_architectures: [infinity_2b]
+  slug_keys: [watermark_delta, watermark_scales, set, watermark_add_noise, watermark_remove_duplicates]
+  params:
+    use_bit_label: 1
+    watermark_delta: 2
+    watermark_scales: 2
+    watermark_method: "2-bit_pattern"
+    set: "01,10"
+    watermark_context_width: 2
+    watermark_gen_image: 0
+    watermark_count_bit_loss_after_reencoding: 1
+    watermark_count_bit_flip: 1
+    watermark_remove_duplicates: 0
+    watermark_add_noise: 0       # read by detector during re-encoding

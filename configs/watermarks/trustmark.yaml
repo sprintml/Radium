@@ -1,0 +1,10 @@
+watermark:
+  method: trustmark
+  type: post_generation
+  slug_keys: [message_length]
+  feature_threshold: 0.0           # bit-decode cutoff in native space (raw decoder logits)
+  feature_normalisation: sigmoid   # logits → probabilities for outlier-robust aggregation (threshold 0.5)
+  feature_cache_mode: npz_stacked  # fixed-shape (100,) per image → one .npz with stacked features
+  params:
+    message_length: 100
+    bitmessage: "1101101111100111100111100101110001111100101100101111010000000111010110000100010000110111010111110001"

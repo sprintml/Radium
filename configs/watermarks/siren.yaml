@@ -1,0 +1,14 @@
+watermark:
+  method: siren
+  type: post_generation
+  name: siren
+  model_path: ${oc.env:RADIOACTIVITY_MODELS}/models/siren
+  slug_keys: [checkpoint_set, resolution, strength]
+  params:
+    checkpoint_set: ""
+    models_root: ${oc.env:RADIOACTIVITY_MODELS}/models/siren
+    encoder_checkpoint: ${oc.env:RADIOACTIVITY_MODELS}/models/siren/encoder.pth
+    decoder_checkpoint: ${oc.env:RADIOACTIVITY_MODELS}/models/siren/decoder.pth
+    resolution: 512
+    strength: 1.5
+

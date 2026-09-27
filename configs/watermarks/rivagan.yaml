@@ -1,0 +1,11 @@
+watermark:
+  method: rivagan
+  type: post_generation
+  model_path: ${oc.env:RADIOACTIVITY_MODELS}/models/
+  slug_keys: [message_length]
+  feature_threshold: 0.0           # bit-decode cutoff in native space (raw decoder logits)
+  feature_normalisation: sigmoid   # logits → probabilities for the secondary normalised-space pass
+  feature_cache_mode: npz_stacked  # fixed-shape (32,) per image
+  params:
+    message_length: 32
+    messages: tensor([[0., 1., 0., 0., 0., 1., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 1., 1., 1., 0., 1., 0., 1., 1., 1., 1., 1., 1., 1., 1., 0., 0.]])

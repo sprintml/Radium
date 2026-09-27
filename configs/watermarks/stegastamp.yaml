@@ -1,0 +1,11 @@
+watermark:
+  method: stegastamp
+  type: post_generation
+  model_path: ${oc.env:RADIOACTIVITY_MODELS}/models/
+  slug_keys: [message_length]
+  feature_threshold: 0.5            # bit-decode cutoff in native space (post-sigmoid probabilities)
+  feature_normalisation: identity   # already in [0,1]; no transform needed for probability-space aggregation
+  feature_cache_mode: npz_stacked   # fixed-shape (100,) per image → one .npz with stacked features
+  params:
+    message_length: 32
+    messages: tensor([[0., 1., 0., 0., 0., 1., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 1., 1., 1., 0., 1., 0., 1., 1., 1., 1., 1., 1., 1., 1., 0., 0., 1., 1., 1., 0., 1., 0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 0., 1., 1., 0., 1., 0., 1., 0., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0., 1., 0., 1., 1., 1., 0., 1., 0., 1., 0., 1., 0., 0., 1., 0., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 0.]])

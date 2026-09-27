@@ -1,0 +1,17 @@
+# TreeRing watermark identity — merged into every stage config that needs it.
+# Owns: method, type, params. Does NOT own: mode / iteration / run_id (runtime,
+# set by stage config + chain_overrides).
+watermark:
+  method: treering
+  type: in_generation
+  generation_compatible_architectures: [sd21]
+  slug_keys: [w_radius, w_pattern, w_channel]
+  params:
+    w_seed: 999999
+    w_channel: 3
+    w_pattern: ring
+    w_mask_shape: circle
+    w_radius: 10
+    w_measurement: l1_complex
+    w_injection: complex
+    w_pattern_const: 0

@@ -1,0 +1,41 @@
+# Minimal SIREN watermark test pipeline configuration.
+#
+# Only runs:
+#   1. generation_m1_clean      - generate clean M1 images
+#   2. generation_m1_watermarked - apply SIREN watermark to clean images
+#
+# No finetuning, no evaluation, no multi-iteration chains.
+# Detection is optional - can be done manually with:
+#   scripts/sanity_check_watermark.py --watermark_config configs/watermarks/siren.yaml
+
+run:
+  name: siren_test
+  auto_generate_configs: true
+  generated_configs_dir: pipeline_configs_siren_test
+  watermark_config: configs/watermarks/siren.yaml
+  generation_config: configs/generation/base.yaml
+  # Architecture for clean/watermarked image generation (post-generation
+  # watermarks like SIREN work with any architecture, so SD2.1 is fine)
+  m1_model_type: sd21
+  mi_model_type: sd21
+  chain:
+    start_i: 1
+    end_i: 1
+    stages:
+      - generation_m1_clean
+      - generation_m1_watermarked
+
+stages:
+
+  generation_m1_clean:
+    base_config: configs/generation/base.yaml
+    chain_overrides:
+      watermark.mode: "clean_generate"
+      watermark.iteration: "{i}"
+
+  generation_m1_watermarked:
+    base_config: configs/generation/base.yaml
+    chain_overrides:
+      watermark.iteration: "{i}"
+    depends_on:
+      - "generation_m1_clean_M{i}"

@@ -1,0 +1,15 @@
+watermark:
+  method: stablesignature
+  type: in_generation
+  generation_compatible_architectures: [sd21]
+  detector_pth: ${oc.env:RADIOACTIVITY_MODELS}/models/dec_48b_whit.torchscript.pt
+  ldm_ckpt: ${oc.env:RADIOACTIVITY_MODELS}/models/v2-1_512-ema-pruned.ckpt
+  decoder_weights: ${oc.env:RADIOACTIVITY_MODELS}/models/sd2_decoder.pth
+  ldm_config_path: configs/pipeline/ldm_config.yaml
+  slug_keys: [model_key]
+  feature_threshold: 0.0           # bit-decode cutoff in native space (raw msg_extractor logits)
+  feature_normalisation: sigmoid   # logits → probabilities for the secondary normalised-space pass
+  feature_cache_mode: npz_stacked  # fixed-shape (48,) per image
+  params:
+    model_key: "111010110101000001010111010011010100010000100111"
+    bitmessage: "111010110101000001010111010011010100010000100111"   # alias of model_key for AggregationTest._planted_bits; not in slug_keys, so paths are unchanged
